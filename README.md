@@ -5,6 +5,8 @@ units in APC's famous rack PDU, the AP7920.
 
 ## Intro to AP7920
 
+![image of AP7920](media/AP7920_SFR.jpg)
+
 The AP7920 is an 8-port switchable rack mounted power distribution unit. It
 features three main components:
 
@@ -42,27 +44,27 @@ Pin | Meaning | Pin | Meaning
 9 | GND PSU2 | 10 | +24V PSU2
 
 It's worth pointing out that on the power supply board, all ground planes
-are separated (so there's one GND pin for PSU1, one for PSU2 and one for
+are separated (so there's one ground pin for PSU1, one for PSU2 and one for
 the current sensors).
 
 #### Relay Board
 
 The relay board has a 10-pin 2mm pitch connector. It exposes the I2C chip
 which takes common `SDA`, `SDL`, `3.3V` and `GND` pins, and exposes three
-address pins for I2C. This is presumably done so that the microcontroller
-can address up to 8 of these relay boards. It also takes 24V in, which is
-used to drive the relays.
+address pins `ADDR0`, `ADDR1`, and `ADDR2`. This is presumably done so that
+the microcontroller can address up to 8 of these relay boards. It also takes
+24V in, which is used to drive the relays.
 
 Pin | Meaning | Pin | Meaning
 --- | --- | --- | ---
 1 | GND | 2 | GND
-3 | VDD (3.3V) | 4 | `SDA`
+3 | VDD (3.3V) | 4 | SDA
 5 | +24V | 6 | +24V
-7 | ADDR0 | 8 | `SDL`
+7 | ADDR0 | 8 | SDL
 9 | ADDR1 | 10 | ADDR2
 
-The microcontroller toggles `ADDR0`, `ADDR1`, `ADDR2` in order to communicate
-with multiple downstream I2C GPIO expanders. The AP7290 only has one expander.
+AP7290 only has one expander, so it doesn't really matter which address
+the MCU selects.
 
 ## Interposer board
 
@@ -81,13 +83,16 @@ It exposes the ADC chip on the SPI header (taking `CS`, `CLK`, `DI` and `DO`)
 and it exposes the GPIO expander on the relay board on the I2C header (showing
 `SDA`, `SDL`). It offers the 5V and 3.3V rails on the PWR header. This is
 enough to connect any other microcontroller that speaks I2C and SPI instead
-of the microcontroller that comes with the AP7920 itself.
+of the microcontroller that comes with the AP7920 itself. The interposer
+assumes only one PCF8574 chip, so it ties all three address pins `ADDR0`,
+`ADDR1` and `ADDR2` to `GND`.
 
-The interposer ties GND together from both PSUs. It has a solder pad (J4)
-thaht allows the current sensor ground to be tied to the main ground as well.
-In production, all four solder pads (J1..J4) should be soldered closed. This
-connects the current sensor output to the ADC. You can measure the voltage
-between J4 and J1..J3 to see the current sensed on Phase A..C.
+The interposer also ties `GND` together from both PSUs, as the original
+microcontroller also does that. It has a solder pad (J4) that allows the
+current sensor ground to be tied to the main ground as well. In production,
+all four solder pads (J1..J4) should be soldered closed. This connects the
+current sensor output to the ADC. You can measure the voltage between J4
+and J1..J3 to see the current sensed on Phase A..C.
 
 ### BOM
 
