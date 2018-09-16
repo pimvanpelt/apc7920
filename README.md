@@ -76,16 +76,19 @@ and plug them into the interposer board instead.
 The interposer has a few commponents. Firstly, there's a DC/DC buck converter
 which takes 24V from PSU1 and switches it down to 5V. Then, there's a LDO that
 takes the 5V and regulates it down to 3.3V. Lastly, there's an ADC chip that
-measures the current on Phase A,B,C and the voltage out of PSU1 and PSU2. The
-24V rail from PSU2 is looped through to the relay board.
+measures the current on Phase A,B,C and the voltage out of PSU1 and PSU2 by 
+using voltage divers (the ADC runs at 3.3V so at least a 7:1 divider is necessary
+to measure the 24V coming out of the PSUs). The 24V rail from PSU2 is looped
+through to the relay board. It exposes its 3.3V rail to the relay board as
+well, to power the GPIO expander and a few other components there.
 
-It exposes the ADC chip on the SPI header (taking `CS`, `CLK`, `DI` and `DO`)
-and it exposes the GPIO expander on the relay board on the I2C header (showing
-`SDA`, `SDL`). It offers the 5V and 3.3V rails on the PWR header. This is
-enough to connect any other microcontroller that speaks I2C and SPI instead
-of the microcontroller that comes with the AP7920 itself. The interposer
-assumes only one PCF8574 chip, so it ties all three address pins `ADDR0`,
-`ADDR1` and `ADDR2` to `GND`.
+It exposes its ADC chip on the SPI header (taking `CS`, `CLK`, `DI` and `DO`)
+and it exposes the GPIO expander from the relay board on the I2C header
+(showing `SDA`, `SDL`). It offers the 5V and 3.3V rails on the PWR header.
+This is enough to connect any other microcontroller that speaks I2C and SPI
+instead of the microcontroller that comes with the AP7920 itself. The
+interposer assumes only one PCF8574 chip, so it ties all three address pins
+`ADDR0`, `ADDR1` and `ADDR2` to `GND`.
 
 The interposer also ties `GND` together from both PSUs, as the original
 microcontroller also does that. It has a solder pad (J4) that allows the
