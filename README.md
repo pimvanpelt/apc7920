@@ -72,7 +72,7 @@ the MCU selects.
 
 ## Interposer board
 
-![Eagle Interposer](media/interposer-v0.png =271x238)
+![Eagle Interposer](media/interposer-v0.png){:width="271px" height="238px"}
 
 This project works by replacing the two ribbon cables that go from the power
 supply board and the relay board to the microcontroller. It's designed to
