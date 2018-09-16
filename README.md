@@ -133,3 +133,5 @@ ported them as well to [Mongoose OS](https://mongoose-os.com/) which is my
 development platform of choice. This makes writing the program really easy.
 
 ### Source Code
+
+See the [firmware](firmware/README.md) directory for information on the firmware.
