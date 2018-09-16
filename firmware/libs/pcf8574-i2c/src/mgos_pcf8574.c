@@ -122,7 +122,8 @@ bool mgos_pcf8574_toggle(struct mgos_pcf8574 *dev, int pin) {
   }
 
   dev->_output ^= (1 << pin);
-  return _write(dev);
+  _write(dev);
+  return dev->_output & (1 << pin);
 }
 
 bool mgos_pcf8574_read_out(struct mgos_pcf8574 *dev, int pin) {
