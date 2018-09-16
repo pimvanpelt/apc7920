@@ -27,6 +27,13 @@ static bool _read(struct mgos_pcf8574 *dev) {
   return true;
 }
 
+static bool _validpin(int pin) {
+  if (pin < 0 || pin > 7) {
+    return false;
+  }
+  return true;
+}
+
 struct mgos_pcf8574 *mgos_pcf8574_create(struct mgos_i2c *i2c, uint8_t i2c_addr) {
   struct mgos_pcf8574 *dev;
 
@@ -38,6 +45,9 @@ struct mgos_pcf8574 *mgos_pcf8574_create(struct mgos_i2c *i2c, uint8_t i2c_addr)
   memset(dev, 0, sizeof(struct mgos_pcf8574));
   dev->i2c      = i2c;
   dev->i2c_addr = i2c_addr;
+
+  // Read initial state
+  _read(dev);
 
   return dev;
 }
@@ -56,31 +66,29 @@ bool mgos_pcf8574_set_mode(struct mgos_pcf8574 *dev, int pin, enum mgos_gpio_mod
   if (!dev) {
     return false;
   }
-  if (pin < 0 || pin > 7) {
+  if (!_validpin(pin)) {
     return false;
   }
   switch (mode) {
   case MGOS_GPIO_MODE_INPUT:
-    dev->_mode   &= ~(1 << pin);
-    dev->_output &= ~(1 << pin);
+    dev->_mode &= ~(1 << pin);
     break;
 
   case MGOS_GPIO_MODE_OUTPUT:
-    dev->_mode   |= (1 << pin);
-    dev->_output &= ~(1 << pin);
+    dev->_mode |= (1 << pin);
     break;
 
   default:
     return false;
   }
-  return _write(dev);
+  return true;
 }
 
 bool mgos_pcf8574_read(struct mgos_pcf8574 *dev, int pin) {
   if (!dev) {
     return false;
   }
-  if (pin < 0 || pin > 7) {
+  if (!_validpin(pin)) {
     return false;
   }
 
@@ -92,7 +100,7 @@ void mgos_pcf8574_write(struct mgos_pcf8574 *dev, int pin, bool level) {
   if (!dev) {
     return;
   }
-  if (pin < 0 || pin > 7) {
+  if (!_validpin(pin)) {
     return;
   }
 
@@ -109,7 +117,7 @@ bool mgos_pcf8574_toggle(struct mgos_pcf8574 *dev, int pin) {
   if (!dev) {
     return false;
   }
-  if (pin < 0 || pin > 7) {
+  if (!_validpin(pin)) {
     return false;
   }
 
