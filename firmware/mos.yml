@@ -1,6 +1,7 @@
 author: Pim van Pelt <pim@ipng.nl>
 description: A Mongoose-OS firmware for APC7920 PDUs
 version: 1.0
+platforms: [ esp8266, esp32 ]
 platform: esp32
 
 libs_version: ${mos.version}
@@ -29,13 +30,24 @@ config_schema:
   - ["i2c.scl_gpio", 22]
   # SPI chip for ADC measurements
   - ["spi.enable", true]
+  - ["spi.miso_gpio", 19]
+  - ["spi.mosi_gpio", 23]
+  - ["spi.sclk_gpio", 18]
   - ["spi.cs0_gpio", 14]
+
+  # Firmware defaults
+  - ["device.id", "apc7920_??????"]
 
 # List of libraries used by this app, in order of initialisation
 libs:
   - origin: https://github.com/mongoose-os-libs/wifi
   - origin: https://github.com/mongoose-os-libs/i2c
   - origin: https://github.com/mongoose-os-libs/spi
+  - origin: https://github.com/mongoose-os-libs/rpc-common
+  - origin: https://github.com/mongoose-os-libs/rpc-uart
+  - origin: https://github.com/mongoose-os-libs/rpc-service-config
+  - origin: https://github.com/mongoose-os-libs/rpc-service-i2c
+
 
 # Used by the mos tool to catch mos binaries incompatible with this file format
 manifest_version: 2017-05-18
