@@ -106,7 +106,8 @@ full bill of materials for the interposer is as such:
 *   D1: Blue LED 
 *   C1: 22uF Tantalum 35V
 *   C2,C3: 10uF Tantalum 16V
-*   U1: MCP3208 -- 150mil SOIC
+*   U1: MCP3208 -- 150mil SOIC (Microchip)
+*   U2: TSR1-2450 (Traco Power)
 *   X1, X2: 5x2 pin 2mm spaced header
 *   J1, J2: 3x1 pin 2.54mm spaced header
 *   J3: 5x1 pin 2.54mm spaced header
