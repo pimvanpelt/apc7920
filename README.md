@@ -20,10 +20,14 @@ features three main components:
 1.  A relay board, which features a general purpose I2C GPIO expander based on
     PCF8574, and eight 24V relays, one for each port on the front.
 
-The design of this PDU is rather well done. With two power supplies, and a 
-decoupled control plane. If the microcontroller reboots or fails, the I2C
-GPIO expander stays put. This allows operators to upgrade/reboot/tinker-with
-the management board without interrupting service to the load.
+The design of this PDU is rather well done, with two power supplies, and a 
+decoupled control plane. The wiring is of high quality, even after many
+years of service the components are still in pristine shape. Shrink wrap
+is used on the wiring for extra safety and the solder quality is very high.
+
+If the microcontroller reboots or fails, the I2C GPIO expander stays put.
+This allows operators to upgrade/reboot/tinker-with the management board
+without interrupting service to the load.
 
 ### Pinouts
 
@@ -63,7 +67,7 @@ Pin | Meaning | Pin | Meaning
 7 | ADDR0 | 8 | SDL
 9 | ADDR1 | 10 | ADDR2
 
-AP7290 only has one expander, so it doesn't really matter which address
+AP7920 only has one expander, so it doesn't really matter which address
 the MCU selects.
 
 ## Interposer board
