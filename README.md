@@ -121,4 +121,13 @@ full bill of materials for the interposer is as such:
 
 ## ESP32 / ESP8266
 
+There are two chips we have to interface with:
+
+*   MCP3208 [datasheet](media/MCP3208.pdf); [driver](https://github.com/mongoose-os-libs/mcp320x-spi)
+*   PCF8475 [datasheet](media/PCF8475.pdf); [driver](https://github.com/mongoose-os-libs/pcf8475-i2c)
+
+Libraries for these two chips are readily available for Arduino, but I've
+ported them as well to [Mongoose OS](https://mongoose-os.com/) which is my
+development platform of choice. This makes writing the program really easy.
+
 ### Source Code
