@@ -5,7 +5,7 @@
 #include "mgos_mcp320x.h"
 
 struct mgos_mcp320x {
-  uint16_t vref;
-  uint8_t cs_idx;
+  uint16_t         vref;
+  uint8_t          cs_idx;
   struct mgos_spi *spi;
 };

@@ -15,4 +15,3 @@ bool mgos_pcf8574_read(struct mgos_pcf8574 *dev, int pin);
 void mgos_pcf8574_write(struct mgos_pcf8574 *dev, int pin, bool level);
 bool mgos_pcf8574_toggle(struct mgos_pcf8574 *dev, int pin);
 bool mgos_pcf8574_read_out(struct mgos_pcf8574 *dev, int pin);
-

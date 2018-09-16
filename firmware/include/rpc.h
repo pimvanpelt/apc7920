@@ -5,4 +5,3 @@
 #include "common/mg_str.h"
 
 void rpc_init();
-

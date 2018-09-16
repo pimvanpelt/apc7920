@@ -8,7 +8,7 @@ static void rpc_log(struct mg_rpc_request_info *ri, struct mg_str args) {
 }
 
 static void rpc_channel_toggle_handler(struct mg_rpc_request_info *ri, void *cb_arg, struct mg_rpc_frame_info *fi, struct mg_str args) {
-  int     idx;
+  int idx;
 
   rpc_log(ri, args);
 
@@ -18,7 +18,7 @@ static void rpc_channel_toggle_handler(struct mg_rpc_request_info *ri, void *cb_
     return;
   }
 
-  if (idx<0 || idx>7) {
+  if (idx < 0 || idx > 7) {
     mg_rpc_send_errorf(ri, 400, "idx must be [0,8>");
     ri = NULL;
     return;
@@ -33,7 +33,7 @@ static void rpc_channel_toggle_handler(struct mg_rpc_request_info *ri, void *cb_
 }
 
 static void rpc_channel_get_handler(struct mg_rpc_request_info *ri, void *cb_arg, struct mg_rpc_frame_info *fi, struct mg_str args) {
-  int     idx;
+  int idx;
 
   rpc_log(ri, args);
 
@@ -43,7 +43,7 @@ static void rpc_channel_get_handler(struct mg_rpc_request_info *ri, void *cb_arg
     return;
   }
 
-  if (idx<0 || idx>7) {
+  if (idx < 0 || idx > 7) {
     mg_rpc_send_errorf(ri, 400, "idx must be [0,8>");
     ri = NULL;
     return;
@@ -57,8 +57,8 @@ static void rpc_channel_get_handler(struct mg_rpc_request_info *ri, void *cb_arg
 }
 
 static void rpc_channel_set_handler(struct mg_rpc_request_info *ri, void *cb_arg, struct mg_rpc_frame_info *fi, struct mg_str args) {
-  int     idx;
-  int     value;
+  int idx;
+  int value;
 
   rpc_log(ri, args);
 
@@ -68,7 +68,7 @@ static void rpc_channel_set_handler(struct mg_rpc_request_info *ri, void *cb_arg
     return;
   }
 
-  if (idx<0 || idx>7) {
+  if (idx < 0 || idx > 7) {
     mg_rpc_send_errorf(ri, 400, "idx must be [0,8>");
     ri = NULL;
     return;
