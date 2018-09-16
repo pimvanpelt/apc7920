@@ -72,6 +72,8 @@ the MCU selects.
 
 ## Interposer board
 
+![Eagle Interposer](media/interposer-v0.png)
+
 This project works by replacing the two ribbon cables that go from the power
 supply board and the relay board to the microcontroller. It's designed to
 be a plugin replacement -- just remove the connectors from the microcontroller
