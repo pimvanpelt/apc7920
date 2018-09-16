@@ -41,12 +41,12 @@ config_schema:
 # List of libraries used by this app, in order of initialisation
 libs:
   - origin: https://github.com/mongoose-os-libs/wifi
-  - origin: https://github.com/mongoose-os-libs/i2c
-  - origin: https://github.com/mongoose-os-libs/spi
   - origin: https://github.com/mongoose-os-libs/rpc-common
   - origin: https://github.com/mongoose-os-libs/rpc-uart
   - origin: https://github.com/mongoose-os-libs/rpc-service-config
   - origin: https://github.com/mongoose-os-libs/rpc-service-i2c
+  - origin: libs/pcf8574-i2c
+  - origin: libs/mcp320x-spi
 
 
 # Used by the mos tool to catch mos binaries incompatible with this file format

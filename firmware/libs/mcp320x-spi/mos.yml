@@ -1,0 +1,21 @@
+author: Pim van Pelt <pim@ipng.nl>
+type: lib
+description: Mongoose OS library implementing an SPI driver for MCP3204/MCP3208
+version: 1.0
+platforms: [esp8266, esp32]
+
+sources:
+  - src
+
+includes:
+  - include
+
+libs:
+  - origin: https://github.com/mongoose-os-libs/spi
+
+tags:
+  - c
+  - spi
+  - hw
+
+manifest_version: 2017-09-29
