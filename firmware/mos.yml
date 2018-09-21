@@ -41,11 +41,13 @@ config_schema:
   - ["wifi.sta.ssid", "dapches-iot"]
   - ["wifi.sta.pass", "marielle"]
   - ["http.enable", true]
+  - ["rpc.enable", true]
   - ["rpc.ws.enable", true]
 
 # List of libraries used by this app, in order of initialisation
 libs:
   - origin: https://github.com/mongoose-os-libs/wifi
+  - origin: https://github.com/mongoose-os-libs/http-server
   - origin: https://github.com/mongoose-os-libs/rpc-common
   - origin: https://github.com/mongoose-os-libs/rpc-uart
   - origin: https://github.com/mongoose-os-libs/rpc-service-config
