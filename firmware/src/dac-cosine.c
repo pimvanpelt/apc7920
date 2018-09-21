@@ -27,11 +27,11 @@
  * so they may be then accessed and changed from debugger
  * over an JTAG interface
  */
-int clk_8m_div     = 7;  // RTC 8M clock divider (division is by clk_8m_div+1, i.e. 0 means 8MHz frequency)
-int frequency_step = 4;  // Frequency step for CW generator
-int scale          = 1;  // 50% of the full scale
-int offset         = 64; // leave it default / 0 = no any offset
-int invert         = 1;  // 2         // invert MSB to get sine waveform
+int clk_8m_div     = 7; // RTC 8M clock divider (division is by clk_8m_div+1, i.e. 0 means 8MHz frequency)
+int frequency_step = 4; // Frequency step for CW generator
+int scale          = 2; // 50% of the full scale
+int offset         = 0; // leave it default / 0 = no any offset
+int invert         = 1; // 2         // invert MSB to get sine waveform
 
 
 /*
@@ -153,6 +153,10 @@ void dactask(void *arg) {
      */
     dac_scale_set(DAC_CHANNEL_2, scale);
     dac_offset_set(DAC_CHANNEL_2, offset);
+    offset += 8;
+    if (offset > 255) {
+      offset = 0;
+    }
     dac_invert_set(DAC_CHANNEL_2, invert);
 
     float frequency = RTC_FAST_CLK_FREQ_APPROX / (1 + clk_8m_div) * (float)frequency_step / 65536;
