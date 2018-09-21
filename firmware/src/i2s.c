@@ -59,6 +59,10 @@ static void i2c_scanner_stats(void *args) {
   (void)args;
 }
 
+/* This scanner runs at idle priority, grabbing CPU while available.
+ * It takes approximately 113ms to complete, and runs at approx 9Hz
+ * allowing us to sample the ADC about 90KHz
+ */
 static void i2s_scanner(void *pvParams) {
   int      i2s_read_len = 1024 * 2;
   uint16_t i2s_read_buff[1024];
@@ -97,7 +101,6 @@ static void i2s_scanner(void *pvParams) {
         s_ringbuf.head %= RINGBUF_SIZE;
 
         s_stats.read_usecs += 1000000 * (mg_time() - start);
-//        ESP_LOG_BUFFER_HEX("buf", i2s_read_buff+1024-64, 64);
       } else {
         LOG(LL_ERROR, ("Event %d received", evt.event_id));
       }
@@ -145,7 +148,7 @@ void i2s_init() {
   memset(&s_ringbuf, 0, sizeof(s_ringbuf));
 
   // Start the receiver thread
-  xTaskCreate(i2s_scanner, "i2s_scanner", 1024 * 10, NULL, 10, NULL);
+  xTaskCreate(i2s_scanner, "i2s_scanner", 1024 * 10, NULL, tskIDLE_PRIORITY, NULL);
 
   // Start reporting timer
   mgos_set_timer(5000, true, i2c_scanner_stats, NULL);
