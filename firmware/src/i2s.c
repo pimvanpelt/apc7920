@@ -10,14 +10,24 @@
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
 
-#define SAMPLE_RATE    (9000)
-#define I2S_NUM        (0)
+#define SAMPLE_RATE     (9000)
+#define I2S_NUM         (0)
+#define RINGBUF_SIZE    (16)
 
-struct adc_chan {
+struct i2c_scanner_adc_channel {
   uint32_t sum;
   uint16_t count;
   uint16_t min;
   uint16_t max;
+};
+
+struct i2c_scanner_adc_channel_set {
+  struct i2c_scanner_adc_channel chan[8];
+};
+
+struct i2c_scanner_adc_channel_ringbuf {
+  struct i2c_scanner_adc_channel_set channel_set[RINGBUF_SIZE];
+  uint8_t                            head;
 };
 
 struct i2c_scanner_stats {
@@ -29,8 +39,27 @@ struct i2c_scanner_stats {
 static QueueHandle_t s_i2s_event_queue;
 
 static struct i2c_scanner_stats s_stats;
+static struct i2c_scanner_adc_channel_ringbuf s_ringbuf;
 
-void i2s_scanner(void *pvParams) {
+static void i2c_scanner_stats(void *args) {
+  struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+
+  for (int i = 0; i < 8; i++) {
+    LOG(LL_INFO, ("chan: %d min: %4u max: %4u avg=%.f count=%u",
+                  i, channel_set->chan[i].min,
+                  channel_set->chan[i].max,
+                  ((float)channel_set->chan[i].sum) / channel_set->chan[i].count,
+                  channel_set->chan[i].count));
+  }
+  LOG(LL_INFO, ("stats: bytes=%u count=%u usecs=%u",
+                s_stats.read_bytes,
+                s_stats.read_count,
+                s_stats.read_usecs));
+
+  (void)args;
+}
+
+static void i2s_scanner(void *pvParams) {
   int      i2s_read_len = 1024 * 2;
   uint16_t i2s_read_buff[1024];
 
@@ -38,38 +67,34 @@ void i2s_scanner(void *pvParams) {
     system_event_t evt;
     if (xQueueReceive(s_i2s_event_queue, &evt, portMAX_DELAY) == pdPASS) {
       if (evt.event_id == 2) { // I2S_EVENT_RX_DONE
-        size_t          bytes_read = 0;
-        struct adc_chan s_adc_chan[8];
-        double start=mg_time();
+        size_t bytes_read = 0;
+        struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+        double start = mg_time();
 
         i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
 //        LOG(LL_INFO, ("Received %u bytes", bytes_read));
-        s_stats.read_bytes+=bytes_read;
-	s_stats.read_count++;
+//        LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
+        s_stats.read_bytes += bytes_read;
+        s_stats.read_count++;
 
-        memset(s_adc_chan, 0, sizeof(s_adc_chan));
+        memset(channel_set->chan, 0, sizeof(struct i2c_scanner_adc_channel) * 8);
         for (int i = 0; i < 8; i++) {
-          s_adc_chan[i].min = 0xfff;
+          channel_set->chan[i].min = 0xfff;
         }
         for (int i = 0; i < bytes_read / 2; i++) {
           uint8_t  chan      = (i2s_read_buff[i] >> 12) & 0x07;
           uint16_t adc_value = i2s_read_buff[i] & 0xfff;
-          s_adc_chan[chan].count++;
-          s_adc_chan[chan].sum += adc_value;
-          if (adc_value < s_adc_chan[chan].min) {
-            s_adc_chan[chan].min    = adc_value;
+          channel_set->chan[chan].count++;
+          channel_set->chan[chan].sum += adc_value;
+          if (adc_value < channel_set->chan[chan].min) {
+            channel_set->chan[chan].min = adc_value;
           }
-          if (adc_value > s_adc_chan[chan].max) {
-            s_adc_chan[chan].max    = adc_value;
+          if (adc_value > channel_set->chan[chan].max) {
+            channel_set->chan[chan].max = adc_value;
           }
         }
-        for (int i = 0; i < 8; i++) {
-          LOG(LL_INFO, ("chan: %d min: %u max: %u count=%u avg=%.f",
-                        i, s_adc_chan[i].min,
-                        s_adc_chan[i].max,
-                        s_adc_chan[i].count,
-                        ((float)s_adc_chan[i].sum) / s_adc_chan[i].count));
-        }
+        s_ringbuf.head++;
+        s_ringbuf.head %= RINGBUF_SIZE;
 
         s_stats.read_usecs += 1000000 * (mg_time() - start);
 //        ESP_LOG_BUFFER_HEX("buf", i2s_read_buff+1024-64, 64);
@@ -117,7 +142,11 @@ void i2s_init() {
   i2s_adc_enable(I2S_NUM);
 
   memset(&s_stats, 0, sizeof(s_stats));
+  memset(&s_ringbuf, 0, sizeof(s_ringbuf));
 
   // Start the receiver thread
   xTaskCreate(i2s_scanner, "i2s_scanner", 1024 * 10, NULL, 10, NULL);
+
+  // Start reporting timer
+  mgos_set_timer(5000, true, i2c_scanner_stats, NULL);
 }
