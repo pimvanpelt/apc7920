@@ -17,13 +17,18 @@ struct adc_chan {
   uint32_t sum;
   uint16_t count;
   uint16_t min;
-  uint16_t min_at;
   uint16_t max;
-  uint16_t max_at;
 };
 
+struct i2c_scanner_stats {
+  uint32_t read_usecs;
+  uint32_t read_bytes;
+  uint32_t read_count;
+};
 
 static QueueHandle_t s_i2s_event_queue;
+
+static struct i2c_scanner_stats s_stats;
 
 void i2s_scanner(void *pvParams) {
   int      i2s_read_len = 1024 * 2;
@@ -35,9 +40,12 @@ void i2s_scanner(void *pvParams) {
       if (evt.event_id == 2) { // I2S_EVENT_RX_DONE
         size_t          bytes_read = 0;
         struct adc_chan s_adc_chan[8];
+        double start=mg_time();
 
         i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
 //        LOG(LL_INFO, ("Received %u bytes", bytes_read));
+        s_stats.read_bytes+=bytes_read;
+	s_stats.read_count++;
 
         memset(s_adc_chan, 0, sizeof(s_adc_chan));
         for (int i = 0; i < 8; i++) {
@@ -50,23 +58,20 @@ void i2s_scanner(void *pvParams) {
           s_adc_chan[chan].sum += adc_value;
           if (adc_value < s_adc_chan[chan].min) {
             s_adc_chan[chan].min    = adc_value;
-            s_adc_chan[chan].min_at = i;
           }
           if (adc_value > s_adc_chan[chan].max) {
             s_adc_chan[chan].max    = adc_value;
-            s_adc_chan[chan].max_at = i;
           }
         }
         for (int i = 0; i < 8; i++) {
-          LOG(LL_INFO, ("chan: %d min: %u min_at: %u max: %u max_at: %u count=%u avg=%.f",
+          LOG(LL_INFO, ("chan: %d min: %u max: %u count=%u avg=%.f",
                         i, s_adc_chan[i].min,
-                        s_adc_chan[i].min_at,
                         s_adc_chan[i].max,
-                        s_adc_chan[i].max_at,
                         s_adc_chan[i].count,
                         ((float)s_adc_chan[i].sum) / s_adc_chan[i].count));
         }
 
+        s_stats.read_usecs += 1000000 * (mg_time() - start);
 //        ESP_LOG_BUFFER_HEX("buf", i2s_read_buff+1024-64, 64);
       } else {
         LOG(LL_ERROR, ("Event %d received", evt.event_id));
@@ -110,6 +115,8 @@ void i2s_init() {
   // WiFi seems to mess with ADC1 otherwise...
   vTaskDelay(8000 / portTICK_RATE_MS);
   i2s_adc_enable(I2S_NUM);
+
+  memset(&s_stats, 0, sizeof(s_stats));
 
   // Start the receiver thread
   xTaskCreate(i2s_scanner, "i2s_scanner", 1024 * 10, NULL, 10, NULL);
