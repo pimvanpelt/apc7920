@@ -37,6 +37,12 @@ config_schema:
 
   # Firmware defaults
   - ["device.id", "apc7920_??????"]
+  - ["wifi.ap.enable", false]
+  - ["wifi.sta.enable", true]
+  - ["wifi.sta.ssid", "dapches-iot"]
+  - ["wifi.sta.pass", "marielle"]
+  - ["http.enable", true]
+  - ["rpc.ws.enable", true]
 
 # List of libraries used by this app, in order of initialisation
 libs:
