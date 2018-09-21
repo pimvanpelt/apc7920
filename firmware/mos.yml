@@ -1,7 +1,6 @@
 author: Pim van Pelt <pim@ipng.nl>
 description: A Mongoose-OS firmware for APC7920 PDUs
 version: 1.0
-platforms: [ esp8266, esp32 ]
 platform: esp32
 
 libs_version: ${mos.version}
