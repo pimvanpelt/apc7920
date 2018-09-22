@@ -79,14 +79,14 @@ supply board and the relay board to the microcontroller. It's designed to
 be a plugin replacement -- just remove the connectors from the microcontroller
 and plug them into the interposer board instead.
 
-The interposer has a few commponents. Firstly, there's a DC/DC buck converter
+The interposer has a few components. Firstly, there's a DC/DC buck converter
 which takes 24V from PSU1 and switches it down to 5V. Then, there's a LDO that
 takes the 5V and regulates it down to 3.3V. Lastly, there's an ADC chip that
 measures the current on Phase A,B,C and the voltage out of PSU1 and PSU2 by 
-using voltage divers (the ADC runs at 3.3V so at least a 7:1 divider is necessary
-to measure the 24V coming out of the PSUs). The 24V rail from PSU2 is looped
-through to the relay board. It exposes its 3.3V rail to the relay board as
-well, to power the GPIO expander and a few other components there.
+using voltage dividers (the ADC runs at 3.3V so at least a 7:1 divider is
+necessary to measure the 24V coming out of the PSUs). The 24V rail from PSU2
+is looped through to the relay board. It exposes its 3.3V rail to the relay
+board as well, to power the GPIO expander and a few other components there.
 
 It exposes its ADC chip on the SPI header (taking `CS`, `CLK`, `DI` and `DO`)
 and it exposes the GPIO expander from the relay board on the I2C header
@@ -102,6 +102,11 @@ current sensor ground to be tied to the main ground as well. In production,
 all four solder pads (J1..J4) should be soldered closed. This connects the
 current sensor output to the ADC. You can measure the voltage between J4
 and J1..J3 to see the current sensed on Phase A..C.
+
+**NOTE** - There is a design flaw in the PCB as it assumes the current
+sensor common should be tied to ground, which is not the case. It should be
+tied to `VCC/2` so that the signal of the current transformer outputs hovers
+between 0-3.3V instead of -1.65-1.65V. A new version is upcoming :)
 
 ### BOM
 
