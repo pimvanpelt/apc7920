@@ -1,4 +1,5 @@
 #include "mgos.h"
+#include "mgos_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/i2s.h"
@@ -40,6 +41,28 @@ static QueueHandle_t s_i2s_event_queue;
 
 static struct i2c_scanner_stats s_stats;
 static struct i2c_scanner_adc_channel_ringbuf s_ringbuf;
+static struct mg_connection *s_udp_nc = NULL;
+
+static void ev_handler(struct mg_connection *nc, int ev, void *ev_data, void *user_data) {
+  switch (ev) {
+  case MG_EV_RECV: {
+//      int bytes_recv = *((int *)ev_data);
+//      LOG(LL_INFO, ("Received %d bytes of data on UDP socket", bytes_recv));
+    nc->recv_mbuf.len = 0;
+    break;
+  }
+
+  case MG_EV_SEND: {
+//      int bytes_sent = *((int *)ev_data);
+//      LOG(LL_INFO, ("Sent %d bytes of data on UDP socket", bytes_sent));
+    break;
+  }
+
+  default:
+    break;
+  }
+  (void)user_data;
+}
 
 static void i2c_scanner_stats(void *args) {
   struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
@@ -100,6 +123,10 @@ static void i2s_scanner(void *pvParams) {
         s_ringbuf.head++;
         s_ringbuf.head %= RINGBUF_SIZE;
 
+        if (s_udp_nc) {
+          mg_send(s_udp_nc, (void *)i2s_read_buff, bytes_read);
+        }
+
         s_stats.read_usecs += 1000000 * (mg_time() - start);
       } else {
         LOG(LL_ERROR, ("Event %d received", evt.event_id));
@@ -146,6 +173,15 @@ void i2s_init() {
 
   memset(&s_stats, 0, sizeof(s_stats));
   memset(&s_ringbuf, 0, sizeof(s_ringbuf));
+
+  if (mgos_sys_config_get_app_i2s_sample_enable()) {
+    s_udp_nc = mg_connect(mgos_get_mgr(), mgos_sys_config_get_app_i2s_sample_mirror(), ev_handler, NULL);
+    if (!s_udp_nc) {
+      LOG(LL_ERROR, ("Could not connect to %s", mgos_sys_config_get_app_i2s_sample_mirror()));
+    } else {
+      LOG(LL_INFO, ("Mirroring I2S samples to %s", mgos_sys_config_get_app_i2s_sample_mirror()));
+    }
+  }
 
   // Start the receiver thread
   xTaskCreate(i2s_scanner, "i2s_scanner", 1024 * 10, NULL, tskIDLE_PRIORITY, NULL);
