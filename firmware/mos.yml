@@ -58,6 +58,7 @@ libs:
   - origin: https://github.com/mongoose-os-libs/rpc-uart
   - origin: https://github.com/mongoose-os-libs/rpc-service-config
   - origin: https://github.com/mongoose-os-libs/rpc-service-i2c
+  - origin: https://github.com/mongoose-os-libs/prometheus-metrics
   - origin: libs/pcf8574-i2c
   - origin: libs/mcp320x-spi
 

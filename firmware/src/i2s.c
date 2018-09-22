@@ -1,5 +1,6 @@
 #include "mgos.h"
 #include "mgos_config.h"
+#include "mgos_prometheus_metrics.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/i2s.h"
@@ -42,6 +43,30 @@ static QueueHandle_t s_i2s_event_queue;
 static struct i2c_scanner_stats s_stats;
 static struct i2c_scanner_adc_channel_ringbuf s_ringbuf;
 static struct mg_connection *s_udp_nc = NULL;
+
+static void prometheus_metrics_fn(struct mg_connection *nc, void *user_data) {
+  struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+
+  mgos_prometheus_metrics_printf(nc, COUNTER, "i2s_scanner_read_count", "Total samples from I2S",
+                                 "%u", s_stats.read_count);
+  mgos_prometheus_metrics_printf(nc, COUNTER, "i2s_scanner_read_bytes_total", "Total bytes from I2S",
+                                 "%u", s_stats.read_bytes);
+  mgos_prometheus_metrics_printf(nc, COUNTER, "i2s_scanner_read_usecs_total", "Total time spent in I2S in microseconds",
+                                 "%u", s_stats.read_usecs);
+
+  for (int i = 0; i < 8; i++) {
+    mgos_prometheus_metrics_printf(nc, GAUGE, "i2s_scanner_raw", "Raw data from I2S Scanner",
+                                   "{channel=\"%u\", type=\"min\"} %u", i,
+                                   channel_set->chan[i].min);
+    mgos_prometheus_metrics_printf(nc, GAUGE, "i2s_scanner_raw", "Raw data from I2S Scanner",
+                                   "{channel=\"%u\", type=\"max\"} %u", i,
+                                   channel_set->chan[i].max);
+    mgos_prometheus_metrics_printf(nc, GAUGE, "i2s_scanner_raw", "Raw data from I2S Scanner",
+                                   "{channel=\"%u\", type=\"avg\"} %f", i,
+                                   ((float)channel_set->chan[i].sum) / channel_set->chan[i].count);
+  }
+  (void)user_data;
+}
 
 static void ev_handler(struct mg_connection *nc, int ev, void *ev_data, void *user_data) {
   switch (ev) {
@@ -188,4 +213,7 @@ void i2s_init() {
 
   // Start reporting timer
   mgos_set_timer(5000, true, i2c_scanner_stats, NULL);
+
+  // Register Prometheus handler
+  mgos_prometheus_metrics_add_handler(prometheus_metrics_fn, NULL);
 }
