@@ -37,19 +37,28 @@ static void rpc_channel_get_handler(struct mg_rpc_request_info *ri, void *cb_arg
 
   rpc_log(ri, args);
 
-  if (json_scanf(args.p, args.len, ri->args_fmt, &idx) != 1) {
-    mg_rpc_send_errorf(ri, 400, "idx is required");
+  // if idx is set, get one channel.
+  if (json_scanf(args.p, args.len, ri->args_fmt, &idx) == 1) {
+    if (idx < 0 || idx > 7) {
+      mg_rpc_send_errorf(ri, 400, "idx must be [0,8>");
+      ri = NULL;
+      return;
+    }
+    mg_rpc_send_responsef(ri, "{idx: %d, value: %d}", idx, channel_get(idx));
     ri = NULL;
     return;
   }
 
-  if (idx < 0 || idx > 7) {
-    mg_rpc_send_errorf(ri, 400, "idx must be [0,8>");
-    ri = NULL;
-    return;
-  }
-
-  mg_rpc_send_responsef(ri, "{idx: %d, value: %d}", idx, channel_get(idx));
+  // if idx is not set, get all channels
+  mg_rpc_send_responsef(ri,
+                        "[{idx: %d, value: %d}, {idx: %d, value: %d}, "
+                        "{idx: %d, value: %d}, {idx: %d, value: %d}, "
+                        "{idx: %d, value: %d}, {idx: %d, value: %d}, "
+                        "{idx: %d, value: %d}, {idx: %d, value: %d}]",
+                        0, channel_get(0), 1, channel_get(1),
+                        2, channel_get(2), 3, channel_get(3),
+                        4, channel_get(4), 5, channel_get(5),
+                        6, channel_get(6), 7, channel_get(7));
   ri = NULL;
 
   (void)cb_arg;
