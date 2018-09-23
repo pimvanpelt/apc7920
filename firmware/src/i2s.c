@@ -126,8 +126,19 @@ static void i2s_scanner(void *pvParams) {
         i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
 //        LOG(LL_INFO, ("Received %u bytes", bytes_read));
 //        LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
-        s_stats.read_bytes += bytes_read;
-        s_stats.read_count++;
+        if (s_stats.read_bytes > UINT_MAX - bytes_read) {
+          LOG(LL_WARN, ("s_stats.read_bytes overflow"));
+          s_stats.read_bytes = 0;
+        } else {
+          s_stats.read_bytes += bytes_read;
+        }
+
+        if (s_stats.read_count == UINT_MAX) {
+          LOG(LL_WARN, ("s_stats.read_count overflow"));
+          s_stats.read_count = 0;
+        } else {
+          s_stats.read_count++;
+        }
 
         memset(channel_set->chan, 0, sizeof(struct i2c_scanner_adc_channel) * 8);
         for (int i = 0; i < 8; i++) {
@@ -152,7 +163,13 @@ static void i2s_scanner(void *pvParams) {
           mg_send(s_udp_nc, (void *)i2s_read_buff, bytes_read);
         }
 
-        s_stats.read_usecs += 1000000 * (mg_time() - start);
+        uint32_t usecs_spent = 1000000 * (mg_time() - start);
+        if (s_stats.read_usecs > UINT_MAX - usecs_spent) {
+          LOG(LL_WARN, ("s_stats.read_usecs overflow"));
+          s_stats.read_usecs = 0;
+        } else {
+          s_stats.read_usecs += usecs_spent;
+        }
       } else {
         LOG(LL_ERROR, ("Event %d received", evt.event_id));
       }
