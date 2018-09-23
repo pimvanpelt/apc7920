@@ -124,6 +124,7 @@ static void i2s_scanner(void *pvParams) {
         double start = mg_time();
 
         i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
+        taskYIELD();
 //        LOG(LL_INFO, ("Received %u bytes", bytes_read));
 //        LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
         if (s_stats.read_bytes > UINT_MAX - bytes_read) {
@@ -173,8 +174,10 @@ static void i2s_scanner(void *pvParams) {
       } else {
         LOG(LL_ERROR, ("Event %d received", evt.event_id));
       }
+      taskYIELD();
     }
   }
+  vTaskDelete(NULL);
 }
 
 void i2s_init() {
