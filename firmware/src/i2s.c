@@ -108,63 +108,68 @@ static void i2s_scanner(void *pvParams) {
   int            i2s_read_len = 1024 * 2;
   uint16_t       i2s_read_buff[1024];
   system_event_t evt;
+  size_t         bytes_read = 0;
+  struct i2s_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+  double   start = mg_time();
+  uint32_t usecs_spent;
 
-  if (xQueueReceive(s_i2s_event_queue, &evt, portMAX_DELAY) == pdPASS) {
-    if (evt.event_id == 2) {   // I2S_EVENT_RX_DONE
-      size_t bytes_read = 0;
-      struct i2s_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
-      double start = mg_time();
+  if (xQueueReceive(s_i2s_event_queue, &evt, 0) != pdPASS) {
+    LOG(LL_WARN, ("No event to consume - consider reducing i2s_scanner frequency"));
+    return;
+  }
 
-      i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
-//      LOG(LL_INFO, ("Received %u bytes", bytes_read));
-//      LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
-      if (s_stats.read_bytes > UINT_MAX - bytes_read) {
-        LOG(LL_WARN, ("s_stats.read_bytes overflow"));
-        s_stats.read_bytes = 0;
-      } else {
-        s_stats.read_bytes += bytes_read;
-      }
+  if (evt.event_id != 2) {     // Event is not I2S_EVENT_RX_DONE
+    LOG(LL_ERROR, ("Event %d received, skipping", evt.event_id));
+    return;
+  }
 
-      if (s_stats.read_count == UINT_MAX) {
-        LOG(LL_WARN, ("s_stats.read_count overflow"));
-        s_stats.read_count = 0;
-      } else {
-        s_stats.read_count++;
-      }
 
-      memset(channel_set->chan, 0, sizeof(struct i2s_scanner_adc_channel) * 8);
-      for (int i = 0; i < 8; i++) {
-        channel_set->chan[i].min = 0xfff;
-      }
-      for (int i = 0; i < bytes_read / 2; i++) {
-        uint8_t  chan      = (i2s_read_buff[i] >> 12) & 0x07;
-        uint16_t adc_value = i2s_read_buff[i] & 0xfff;
-        channel_set->chan[chan].count++;
-        channel_set->chan[chan].sum += adc_value;
-        if (adc_value < channel_set->chan[chan].min) {
-          channel_set->chan[chan].min = adc_value;
-        }
-        if (adc_value > channel_set->chan[chan].max) {
-          channel_set->chan[chan].max = adc_value;
-        }
-      }
-      s_ringbuf.head++;
-      s_ringbuf.head %= RINGBUF_SIZE;
+  i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
+  // LOG(LL_INFO, ("Received %u bytes", bytes_read));
+  // LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
+  if (s_stats.read_bytes > UINT_MAX - bytes_read) {
+    LOG(LL_WARN, ("s_stats.read_bytes overflow"));
+    s_stats.read_bytes = 0;
+  } else {
+    s_stats.read_bytes += bytes_read;
+  }
 
-      if (s_udp_nc) {
-        mg_send(s_udp_nc, (void *)i2s_read_buff, bytes_read);
-      }
+  if (s_stats.read_count == UINT_MAX) {
+    LOG(LL_WARN, ("s_stats.read_count overflow"));
+    s_stats.read_count = 0;
+  } else {
+    s_stats.read_count++;
+  }
 
-      uint32_t usecs_spent = 1000000 * (mg_time() - start);
-      if (s_stats.read_usecs > UINT_MAX - usecs_spent) {
-        LOG(LL_WARN, ("s_stats.read_usecs overflow"));
-        s_stats.read_usecs = 0;
-      } else {
-        s_stats.read_usecs += usecs_spent;
-      }
-    } else {
-      LOG(LL_ERROR, ("Event %d received", evt.event_id));
+  memset(channel_set->chan, 0, sizeof(struct i2s_scanner_adc_channel) * 8);
+  for (int i = 0; i < 8; i++) {
+    channel_set->chan[i].min = 0xfff;
+  }
+  for (int i = 0; i < bytes_read / 2; i++) {
+    uint8_t  chan      = (i2s_read_buff[i] >> 12) & 0x07;
+    uint16_t adc_value = i2s_read_buff[i] & 0xfff;
+    channel_set->chan[chan].count++;
+    channel_set->chan[chan].sum += adc_value;
+    if (adc_value < channel_set->chan[chan].min) {
+      channel_set->chan[chan].min = adc_value;
     }
+    if (adc_value > channel_set->chan[chan].max) {
+      channel_set->chan[chan].max = adc_value;
+    }
+  }
+  s_ringbuf.head++;
+  s_ringbuf.head %= RINGBUF_SIZE;
+
+  if (s_udp_nc) {
+    mg_send(s_udp_nc, (void *)i2s_read_buff, bytes_read);
+  }
+
+  usecs_spent = 1000000 * (mg_time() - start);
+  if (s_stats.read_usecs > UINT_MAX - usecs_spent) {
+    LOG(LL_WARN, ("s_stats.read_usecs overflow"));
+    s_stats.read_usecs = 0;
+  } else {
+    s_stats.read_usecs += usecs_spent;
   }
 }
 
