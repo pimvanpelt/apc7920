@@ -1,38 +1,32 @@
 #include "mgos.h"
 #include "mgos_config.h"
 #include "mgos_prometheus_metrics.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "driver/i2s.h"
-#include "esp_system.h"
-#include "freertos/event_groups.h"
-#include "esp_log.h"
 #include "soc/syscon_reg.h"
-#include "driver/adc.h"
 #include "esp_event_loop.h"
-#include "nvs_flash.h"
+#include "driver/adc.h"
 
 #define SAMPLE_RATE     (9000)
 #define I2S_NUM         (0)
 #define RINGBUF_SIZE    (16)
 
-struct i2c_scanner_adc_channel {
+struct i2s_scanner_adc_channel {
   uint32_t sum;
   uint16_t count;
   uint16_t min;
   uint16_t max;
 };
 
-struct i2c_scanner_adc_channel_set {
-  struct i2c_scanner_adc_channel chan[8];
+struct i2s_scanner_adc_channel_set {
+  struct i2s_scanner_adc_channel chan[8];
 };
 
-struct i2c_scanner_adc_channel_ringbuf {
-  struct i2c_scanner_adc_channel_set channel_set[RINGBUF_SIZE];
+struct i2s_scanner_adc_channel_ringbuf {
+  struct i2s_scanner_adc_channel_set channel_set[RINGBUF_SIZE];
   uint8_t                            head;
 };
 
-struct i2c_scanner_stats {
+struct i2s_scanner_stats {
   uint32_t read_usecs;
   uint32_t read_bytes;
   uint32_t read_count;
@@ -40,12 +34,12 @@ struct i2c_scanner_stats {
 
 static QueueHandle_t s_i2s_event_queue;
 
-static struct i2c_scanner_stats s_stats;
-static struct i2c_scanner_adc_channel_ringbuf s_ringbuf;
+static struct i2s_scanner_stats s_stats;
+static struct i2s_scanner_adc_channel_ringbuf s_ringbuf;
 static struct mg_connection *s_udp_nc = NULL;
 
 static void prometheus_metrics_fn(struct mg_connection *nc, void *user_data) {
-  struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+  struct i2s_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
 
   mgos_prometheus_metrics_printf(nc, COUNTER, "i2s_scanner_read_count", "Total samples from I2S",
                                  "%u", s_stats.read_count);
@@ -89,8 +83,8 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data, void *us
   (void)user_data;
 }
 
-static void i2c_scanner_stats(void *args) {
-  struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+static void i2s_scanner_stats(void *args) {
+  struct i2s_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
 
   for (int i = 0; i < 8; i++) {
     LOG(LL_INFO, ("chan: %d min: %4u max: %4u avg=%.f count=%u",
@@ -107,77 +101,71 @@ static void i2c_scanner_stats(void *args) {
   (void)args;
 }
 
-/* This scanner runs at idle priority, grabbing CPU while available.
- * It takes approximately 113ms to complete, and runs at approx 9Hz
- * allowing us to sample the ADC about 90KHz
+/* This scanner takes approximately 350us to complete, and runs at
+ * approx 10Hz allowing us to sample the ADC about 50KHz
  */
 static void i2s_scanner(void *pvParams) {
-  int      i2s_read_len = 1024 * 2;
-  uint16_t i2s_read_buff[1024];
+  int            i2s_read_len = 1024 * 2;
+  uint16_t       i2s_read_buff[1024];
+  system_event_t evt;
 
-  while (1) {
-    system_event_t evt;
-    if (xQueueReceive(s_i2s_event_queue, &evt, portMAX_DELAY) == pdPASS) {
-      if (evt.event_id == 2) { // I2S_EVENT_RX_DONE
-        size_t bytes_read = 0;
-        struct i2c_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
-        double start = mg_time();
+  if (xQueueReceive(s_i2s_event_queue, &evt, portMAX_DELAY) == pdPASS) {
+    if (evt.event_id == 2) {   // I2S_EVENT_RX_DONE
+      size_t bytes_read = 0;
+      struct i2s_scanner_adc_channel_set *channel_set = &s_ringbuf.channel_set[s_ringbuf.head];
+      double start = mg_time();
 
-        i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
-        taskYIELD();
-//        LOG(LL_INFO, ("Received %u bytes", bytes_read));
-//        LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
-        if (s_stats.read_bytes > UINT_MAX - bytes_read) {
-          LOG(LL_WARN, ("s_stats.read_bytes overflow"));
-          s_stats.read_bytes = 0;
-        } else {
-          s_stats.read_bytes += bytes_read;
-        }
-
-        if (s_stats.read_count == UINT_MAX) {
-          LOG(LL_WARN, ("s_stats.read_count overflow"));
-          s_stats.read_count = 0;
-        } else {
-          s_stats.read_count++;
-        }
-
-        memset(channel_set->chan, 0, sizeof(struct i2c_scanner_adc_channel) * 8);
-        for (int i = 0; i < 8; i++) {
-          channel_set->chan[i].min = 0xfff;
-        }
-        for (int i = 0; i < bytes_read / 2; i++) {
-          uint8_t  chan      = (i2s_read_buff[i] >> 12) & 0x07;
-          uint16_t adc_value = i2s_read_buff[i] & 0xfff;
-          channel_set->chan[chan].count++;
-          channel_set->chan[chan].sum += adc_value;
-          if (adc_value < channel_set->chan[chan].min) {
-            channel_set->chan[chan].min = adc_value;
-          }
-          if (adc_value > channel_set->chan[chan].max) {
-            channel_set->chan[chan].max = adc_value;
-          }
-        }
-        s_ringbuf.head++;
-        s_ringbuf.head %= RINGBUF_SIZE;
-
-        if (s_udp_nc) {
-          mg_send(s_udp_nc, (void *)i2s_read_buff, bytes_read);
-        }
-
-        uint32_t usecs_spent = 1000000 * (mg_time() - start);
-        if (s_stats.read_usecs > UINT_MAX - usecs_spent) {
-          LOG(LL_WARN, ("s_stats.read_usecs overflow"));
-          s_stats.read_usecs = 0;
-        } else {
-          s_stats.read_usecs += usecs_spent;
-        }
+      i2s_read(I2S_NUM, (char *)i2s_read_buff, i2s_read_len, &bytes_read, portMAX_DELAY);
+//      LOG(LL_INFO, ("Received %u bytes", bytes_read));
+//      LOG(LL_INFO, ("Reading into channel_set %d", s_ringbuf.head));
+      if (s_stats.read_bytes > UINT_MAX - bytes_read) {
+        LOG(LL_WARN, ("s_stats.read_bytes overflow"));
+        s_stats.read_bytes = 0;
       } else {
-        LOG(LL_ERROR, ("Event %d received", evt.event_id));
+        s_stats.read_bytes += bytes_read;
       }
-      taskYIELD();
+
+      if (s_stats.read_count == UINT_MAX) {
+        LOG(LL_WARN, ("s_stats.read_count overflow"));
+        s_stats.read_count = 0;
+      } else {
+        s_stats.read_count++;
+      }
+
+      memset(channel_set->chan, 0, sizeof(struct i2s_scanner_adc_channel) * 8);
+      for (int i = 0; i < 8; i++) {
+        channel_set->chan[i].min = 0xfff;
+      }
+      for (int i = 0; i < bytes_read / 2; i++) {
+        uint8_t  chan      = (i2s_read_buff[i] >> 12) & 0x07;
+        uint16_t adc_value = i2s_read_buff[i] & 0xfff;
+        channel_set->chan[chan].count++;
+        channel_set->chan[chan].sum += adc_value;
+        if (adc_value < channel_set->chan[chan].min) {
+          channel_set->chan[chan].min = adc_value;
+        }
+        if (adc_value > channel_set->chan[chan].max) {
+          channel_set->chan[chan].max = adc_value;
+        }
+      }
+      s_ringbuf.head++;
+      s_ringbuf.head %= RINGBUF_SIZE;
+
+      if (s_udp_nc) {
+        mg_send(s_udp_nc, (void *)i2s_read_buff, bytes_read);
+      }
+
+      uint32_t usecs_spent = 1000000 * (mg_time() - start);
+      if (s_stats.read_usecs > UINT_MAX - usecs_spent) {
+        LOG(LL_WARN, ("s_stats.read_usecs overflow"));
+        s_stats.read_usecs = 0;
+      } else {
+        s_stats.read_usecs += usecs_spent;
+      }
+    } else {
+      LOG(LL_ERROR, ("Event %d received", evt.event_id));
     }
   }
-  vTaskDelete(NULL);
 }
 
 void i2s_init() {
@@ -213,7 +201,7 @@ void i2s_init() {
 
   // It is necessary to add a delay before switching on the ADC for a reliable start (?)
   // WiFi seems to mess with ADC1 otherwise...
-  vTaskDelay(8000 / portTICK_RATE_MS);
+  mgos_msleep(8000);
   i2s_adc_enable(I2S_NUM);
 
   memset(&s_stats, 0, sizeof(s_stats));
@@ -228,11 +216,11 @@ void i2s_init() {
     }
   }
 
-  // Start the receiver thread
-  xTaskCreate(i2s_scanner, "i2s_scanner", 1024 * 10, NULL, tskIDLE_PRIORITY, NULL);
+  // Start the receiver timer
+  mgos_set_timer(100, true, i2s_scanner, NULL);
 
   // Start reporting timer
-  mgos_set_timer(5000, true, i2c_scanner_stats, NULL);
+  mgos_set_timer(5000, true, i2s_scanner_stats, NULL);
 
   // Register Prometheus handler
   mgos_prometheus_metrics_add_handler(prometheus_metrics_fn, NULL);
