@@ -102,7 +102,7 @@ static void i2s_scanner_stats(void *args) {
 }
 
 /* This scanner takes approximately 350us to complete, and runs at
- * approx 10Hz allowing us to sample the ADC about 50KHz
+ * approx 5Hz allowing us to sample the ADC about 50KHz
  */
 static void i2s_scanner(void *pvParams) {
   int            i2s_read_len = 1024 * 2;
@@ -217,7 +217,7 @@ void i2s_init() {
   }
 
   // Start the receiver timer
-  mgos_set_timer(100, true, i2s_scanner, NULL);
+  mgos_set_timer(200, true, i2s_scanner, NULL);
 
   // Start reporting timer
   mgos_set_timer(5000, true, i2s_scanner_stats, NULL);
