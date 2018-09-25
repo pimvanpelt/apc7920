@@ -139,31 +139,24 @@ void dac_invert_set(dac_channel_t channel, int invert) {
   }
 }
 
-/*
- * Main task that let you test CW parameters in action
- *
- */
-void dactask(void *arg) {
-  while (1) {
-    // frequency setting is common to both channels
-    dac_frequency_set(clk_8m_div, frequency_step);
+static void dac_cb(void *arg) {
+  // frequency setting is common to both channels
+  dac_frequency_set(clk_8m_div, frequency_step);
 
-    /* Tune parameters of channel 2 only
-     * to see and compare changes against channel 1
-     */
-    dac_scale_set(DAC_CHANNEL_2, scale);
-    dac_offset_set(DAC_CHANNEL_2, offset);
-    offset += 8;
-    if (offset > 255) {
-      offset = 0;
-    }
-    dac_invert_set(DAC_CHANNEL_2, invert);
-
-    float frequency = RTC_FAST_CLK_FREQ_APPROX / (1 + clk_8m_div) * (float)frequency_step / 65536;
-    LOG(LL_INFO, ("clk_8m_div: %d, frequency step: %d, frequency: %.0f Hz", clk_8m_div, frequency_step, frequency));
-    LOG(LL_INFO, ("DAC2 scale: %d, offset %d, invert: %d", scale, offset, invert));
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
+  /* Tune parameters of channel 2 only
+   * to see and compare changes against channel 1
+   */
+  dac_scale_set(DAC_CHANNEL_2, scale);
+  dac_offset_set(DAC_CHANNEL_2, offset);
+  offset += 8;
+  if (offset > 255) {
+    offset = 0;
   }
+  dac_invert_set(DAC_CHANNEL_2, invert);
+
+  float frequency = RTC_FAST_CLK_FREQ_APPROX / (1 + clk_8m_div) * (float)frequency_step / 65536;
+  LOG(LL_INFO, ("clk_8m_div: %d, frequency step: %d, frequency: %.0f Hz", clk_8m_div, frequency_step, frequency));
+  LOG(LL_INFO, ("DAC2 scale: %d, offset %d, invert: %d", scale, offset, invert));
 }
 
 /*
@@ -183,5 +176,5 @@ void dac_cosine_init() {
   dac_output_enable(DAC_CHANNEL_1);
   dac_output_enable(DAC_CHANNEL_2);
 
-  xTaskCreate(dactask, "dactask", 1024 * 3, NULL, 10, NULL);
+  mgos_set_timer(2000, true, dac_cb, NULL);
 }
